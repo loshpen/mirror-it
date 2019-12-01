@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MirrorIt</title>
+  <style type="text/css">
+    canvas {
+      border: 1px solid red;
+      margin: 5px;
+    }
+
+    #first {
+      white-space: nowrap;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/5.1.3/pixi.js"></script>
+</head>
+<body>
+  <div id="first"></div>
+  <div id="second"></div>
+  <script type="text/javascript">
+    function drawInstruction() {
+      dropzone_app.stage.removeChildren();
+
+      var text_options = {
+        fontWeight: 'bold'
+      };
+
+      var instruction = new PIXI.Text('Drop image here and then click', text_options);
+
+      instruction.anchor = new PIXI.Point(0.5, 0.5)
+      instruction.position = new PIXI.Point(Math.floor(dropzone_app.view.width / 2) + 0.5 * (1 & instruction.width), Math.floor(dropzone_app.view.height / 2) + 0.5 * (1 & instruction.height));
+
+      dropzone_app.stage.addChild(instruction);
+    }
+
+    function drawDroppedPicture(source) {
+      var loader = new PIXI.Loader()
+      console.log(source);
+
+      loader.add('image', source, {crossOrigin: 'anonymous'});
+
+      //loader.add({name: 'image', url: source, crossOrigin: 'anonymous'})
+
+      loader.load(function(loader, resources){
+        var sprite = new PIXI.Sprite.from(resources.image.texture);
+
+        var width_multiplier = sprite.width / 800;
+        var height_multiplier = sprite.height / 450;
+
+        var scale = 1 / Math.max(width_multiplier, height_multiplier);
+
+        sprite.scale = new PIXI.Point(scale, scale);
+
+        dropzone_app.view.width = sprite.width;
+        dropzone_app.view.height = sprite.height;
+
+        dropzone_app.stage.removeChildren();
+
+        createSeparator();
+
+        dropzone_app.sprite = sprite;
+
+        dropzone_app.stage.addChildAt(sprite, 0);
+
+        resetResults();
+      });
+    }      
+    
+    function handleDropInput(input) {
+      if (input.kind == 'file') {
+        var reader = new FileReader();
+
+        reader.addEventListener('loadend', function(e){
+          drawDroppedPicture(e.target.result)
+        });
+      
+        reader.readAsDataURL(input.getAsFile());
+      }
+      else
+        input.getAsString(drawDroppedPicture);
+    }
+    
+    function resetResults() {
+      left_app.stage.removeChildren();
+      right_app.stage.removeChildren();
+
+      left_app.view.width = right_app.width = dropzone_app.view.width;
+      left_app.view.height = right_app.height = dropzone_app.view.height;
+    }
+
+    function createSeparator(){
+      separator = new PIXI.Graphics();
+
+      separator.lineStyle(1, 0x5ef743, 0.7);
+      separator.lineTo(0, 450);
+
+      dropzone_app.stage.addChild(separator)
+      dropzone_app.separator = separator
+    }
+
+    function startSelect(separator_horizontal_offset) {
+      dropzone_app.isSelecting = true;
+      dropzone_app.separator.visible = true;
+      dropzone_app.separator.position.x = separator_horizontal_offset;
+
+      createMirrorImages(separator_horizontal_offset);
+
+      dropzone_app.stage.mousemove = function(e){
+        dropzone_app.separator.position.x = e.data.global.x;
+
+        if (e.data.global.x <= dropzone_app.view.width)
+          createMirrorImages(e.data.global.x);
+      }
+    }
+
+    function stopSelect() {
+      dropzone_app.isSelecting = false;
+      dropzone_app.separator.visible = false;
+      dropzone_app.stage.mousemove = null;
+    }
+
+    function toggleSelect(e) {
+      if (dropzone_app.isSelecting)
+        stopSelect();
+      else
+        startSelect(e.data.global.x);
+    }
+
+    function createMirrorImages(splitter_x) {
+      var edge_x = Math.floor(splitter_x / dropzone_app.sprite.scale.x);
+
+      var left_texture = new PIXI.Texture(dropzone_app.sprite.texture, new PIXI.Rectangle(0, 0, edge_x, dropzone_app.sprite.texture.height));
+      var right_texture = new PIXI.Texture(dropzone_app.sprite.texture, new PIXI.Rectangle(edge_x, 0, dropzone_app.sprite.texture.width - edge_x, dropzone_app.sprite.texture.height));
+
+      addSpriteAndResize(createMirroredImage(left_texture, 'left'), left_app);
+      addSpriteAndResize(createMirroredImage(right_texture, 'right'), right_app);
+    }
+
+    function createMirroredImage(texture, source_side){
+      var container = new PIXI.Container();
+      var sprite1 = new PIXI.Sprite.from(texture);
+      var sprite2 = new PIXI.Sprite.from(texture);
+
+       sprite2.scale.x = -sprite2.scale.x;
+       sprite2.anchor.x = 1;
+
+      if (source_side == 'left') {
+        sprite2.position.x = sprite1.width;
+      }
+      else {
+        sprite1.position.x = sprite2.width;
+      }
+
+
+      container.addChild(sprite1);
+      container.addChild(sprite2);
+
+      container.scale = dropzone_app.sprite.scale.clone();
+
+      return container;
+    }
+
+    function addSpriteAndResize(sprite, app) {
+      app.stage.removeChildren();
+      app.stage.addChild(sprite);
+
+      app.view.width = sprite.width;
+      app.view.height = sprite.height;
+    }
+
+    var app_settings = {
+      width: 800,
+      height: 450,
+      transparent: true
+    };
+
+    var dropzone_app = new PIXI.Application(app_settings);
+    var left_app = new PIXI.Application(app_settings);
+    var right_app = new PIXI.Application(app_settings);
+
+    document.querySelector('#first').append(dropzone_app.view);
+    document.querySelector('#first').append(left_app.view);
+    document.querySelector('#second').append(right_app.view);
+
+    dropzone_app.view.addEventListener('dragover', (e)=> e.preventDefault());
+
+    dropzone_app.view.addEventListener('drop', function(e){
+      e.preventDefault();
+
+      var dropInput = e.dataTransfer.items[0];
+
+      handleDropInput(dropInput);
+    });
+
+    dropzone_app.stage.interactive = true
+
+    dropzone_app.stage.click = toggleSelect
+
+    drawInstruction();
+  </script>
+</body>
+</html>
