@@ -39,8 +39,6 @@
 
       loader.add('image', source, {crossOrigin: 'anonymous'});
 
-      //loader.add({name: 'image', url: source, crossOrigin: 'anonymous'})
-
       loader.load(function(loader, resources){
         var sprite = new PIXI.Sprite.from(resources.image.texture);
 
@@ -94,8 +92,8 @@
       separator.lineStyle(1, 0x5ef743, 0.7);
       separator.lineTo(0, 450);
 
-      dropzone_app.stage.addChild(separator)
-      dropzone_app.separator = separator
+      dropzone_app.stage.addChild(separator);
+      dropzone_app.separator = separator;
     }
 
     function startSelect(separator_horizontal_offset) {
@@ -192,9 +190,9 @@
       handleDropInput(dropInput);
     });
 
-    dropzone_app.stage.interactive = true
+    dropzone_app.stage.interactive = true;
 
-    dropzone_app.stage.click = toggleSelect
+    dropzone_app.stage.click = toggleSelect;
 
     drawInstruction();
   </script>
